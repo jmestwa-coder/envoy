@@ -95,12 +95,14 @@ generate_ca() {
   local extra_args=()
   if [[ -n "$2" ]]; then
       extra_args=(-CA "${2}_cert.pem" -CAkey "${2}_key.pem" -CAcreateserial)
+  else
+      extra_args=(-signkey "${1}_key.pem")
   fi
   openssl genrsa -out "${1}_key.pem" 2048
   openssl req -new -key "${1}_key.pem" -out "${1}_cert.csr" \
     -config "${1}.cnf" -batch -sha256
   openssl x509 -req \
-    -in "${1}_cert.csr" -signkey "${1}_key.pem" -out "${1}_cert.pem" \
+    -in "${1}_cert.csr" -out "${1}_cert.pem" \
     -extensions v3_ca -extfile "${1}.cnf" -days "${DEFAULT_VALIDITY_DAYS}" "${extra_args[@]}"
 }
 

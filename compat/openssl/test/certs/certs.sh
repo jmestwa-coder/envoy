@@ -2,6 +2,8 @@
 
 set -e
 
+readonly DEFAULT_VALIDITY_DAYS=${DEFAULT_VALIDITY_DAYS:-3650}
+
 generate_ca() { # $1=<CA name> $2=[issuer name]
   local extra_args=()
   if [[ -n "$2" ]]; then
@@ -11,7 +13,7 @@ generate_ca() { # $1=<CA name> $2=[issuer name]
   fi
   openssl genrsa -out "${1}_key.pem" 2048
   openssl req -new -key "${1}_key.pem" -out "${1}_cert.csr" -config "${1}_cert.cfg" -batch -sha256
-  openssl x509 -req -days 730 -in "${1}_cert.csr" -out "${1}_cert.pem" -extensions v3_ca -extfile "${1}_cert.cfg" "${extra_args[@]}"
+  openssl x509 -req -days "${DEFAULT_VALIDITY_DAYS}" -in "${1}_cert.csr" -out "${1}_cert.pem" -extensions v3_ca -extfile "${1}_cert.cfg" "${extra_args[@]}"
 }
 
 generate_rsa_key() { # $1=<certificate name>
@@ -19,11 +21,10 @@ generate_rsa_key() { # $1=<certificate name>
 }
 
 generate_x509_cert() { # $1=<certificate name> $2=<CA name> $3=[days]
-  local days="${3:-730}"
+  local days="${3:-${DEFAULT_VALIDITY_DAYS}}"
   openssl req -new -key "${1}_key.pem" -out "${1}_cert.csr" -config "${1}_cert.cfg" -batch -sha256
   openssl x509 -req -days "${days}" -in "${1}_cert.csr" -sha256 -CA "${2}_cert.pem" -CAkey "${2}_key.pem" -CAcreateserial -out "${1}_cert.pem" -extensions v3_ca -extfile "${1}_cert.cfg"
 }
-
 
 cd "$(dirname "$0")"
 

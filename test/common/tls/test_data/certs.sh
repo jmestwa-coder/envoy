@@ -479,6 +479,10 @@ generate_x509_cert keyusage_cert_sign ca
 generate_rsa_key keyusage_crl_sign
 generate_x509_cert keyusage_crl_sign ca
 
+generate_rsa_key bad_rsa_key_usage
+generate_x509_cert bad_rsa_key_usage ca
+generate_info_header bad_rsa_key_usage
+
 generate_rsa_key spiffe_san
 generate_x509_cert spiffe_san ca
 

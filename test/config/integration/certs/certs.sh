@@ -2,6 +2,8 @@
 
 set -e
 
+readonly DEFAULT_VALIDITY_DAYS=${DEFAULT_VALIDITY_DAYS:-3650}
+
 # $1=<CA name> $2=[issuer name]
 generate_ca() {
   local extra_args=()
@@ -12,7 +14,7 @@ generate_ca() {
   fi
   openssl genrsa -out "${1}key.pem" 2048
   openssl req -new -key "${1}key.pem" -out "${1}cert.csr" -config "${1}cert.cfg" -batch -sha256
-  openssl x509 -req -days 730 -in "${1}cert.csr" -out "${1}cert.pem" \
+  openssl x509 -req -days "${DEFAULT_VALIDITY_DAYS}" -in "${1}cert.csr" -out "${1}cert.pem" \
     -extensions v3_ca -extfile "${1}cert.cfg" "${extra_args[@]}"
   generate_info_header "$1"
 }
@@ -29,7 +31,7 @@ generate_ecdsa_key() {
 
 # $1=<certificate name> $2=<CA name> $3=[days]
 generate_x509_cert() {
-  local days="${3:-730}"
+  local days="${3:-${DEFAULT_VALIDITY_DAYS}}"
   openssl req -new -key "${1}key.pem" -out "${1}cert.csr" -config "${1}cert.cfg" -batch -sha256
   openssl x509 -req -days "${days}" -in "${1}cert.csr" -sha256 -CA "${2}cert.pem" -CAkey \
     "${2}key.pem" -CAcreateserial -out "${1}cert.pem" -extensions v3_ca -extfile "${1}cert.cfg"
@@ -52,7 +54,7 @@ generate_ocsp_response() {
   touch "${2}_index.txt"
   openssl ocsp -CA "${2}cert.pem" \
     -rkey "${2}key.pem" -rsigner "${2}cert.pem" -index "${2}_index.txt" \
-    -reqin "${1}_ocsp_req.der" -respout "${1}_ocsp_resp.der" -ndays 730
+    -reqin "${1}_ocsp_req.der" -respout "${1}_ocsp_resp.der" -ndays "${DEFAULT_VALIDITY_DAYS}"
 
   rm "${1}_ocsp_req.der" "${2}_index.txt"
 }
