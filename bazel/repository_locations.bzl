@@ -61,8 +61,8 @@ REPOSITORY_LOCATIONS_SPEC = dict(
     boringssl = dict(
         # To update BoringSSL, which tracks BCR tags, open https://registry.bazel.build/modules/boringssl
         # and select an appropriate tag for the new version.
-        version = "0.20260327.0",
-        sha256 = "6af7037a8891d0e3d097dd61de6d195f6c2b532ed69d138a16da47c06a6cd022",
+        version = "0.20260413.0",
+        sha256 = "3560f7dd3f08e16b9f84d877a5be21ec62071564783009571af5fcc6fad734d2",
         strip_prefix = "boringssl-{version}",
         urls = ["https://github.com/google/boringssl/archive/{version}.tar.gz"],
     ),
