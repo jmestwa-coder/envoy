@@ -143,11 +143,12 @@ TEST_F(AsyncTcpClientImplTest, TestReadDisable) {
 TEST_F(AsyncTcpClientImplTest, TestCloseType) {
   setUpClient();
   expectCreateConnection();
+  testing::InSequence in_sequence;
+  EXPECT_CALL(*connection_, close(Network::ConnectionCloseType::Abort));
   EXPECT_CALL(callbacks_, onEvent(Network::ConnectionEvent::LocalClose))
       .WillOnce(InvokeWithoutArgs([&]() -> void {
         EXPECT_EQ(client_->detectedCloseType(), StreamInfo::DetectedCloseType::Normal);
       }));
-  EXPECT_CALL(*connection_, close(Network::ConnectionCloseType::Abort));
   EXPECT_CALL(dispatcher_, deferredDelete_(_)).WillOnce(InvokeWithoutArgs([&]() -> void {
     EXPECT_EQ(client_->detectedCloseType(), StreamInfo::DetectedCloseType::Normal);
   }));

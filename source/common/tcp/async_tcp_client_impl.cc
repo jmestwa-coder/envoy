@@ -137,10 +137,10 @@ void AsyncTcpClientImpl::onEvent(Network::ConnectionEvent event) {
     }
 
     closing_ = false;
-    dispatcher_.deferredDelete(std::move(connection_));
     if (callbacks_) {
       callbacks_->onEvent(event);
     }
+    dispatcher_.deferredDelete(std::move(connection_));
   } else {
     connected_ = true;
     conn_connect_ms_->complete();
