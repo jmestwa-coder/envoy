@@ -636,6 +636,7 @@ private:
   void maybeProcessOrcaLoadReport(const Envoy::Http::HeaderMap& headers_or_trailers,
                                   UpstreamRequest& upstream_request);
   bool isEarlyConnectData();
+  void rejectEarlyConnectData(bool reset_upstreams);
 
   RetryStatePtr retry_state_;
   const FilterConfigSharedPtr config_;
@@ -698,6 +699,7 @@ private:
   // Cached runtime flag value for reject_early_connect_data to avoid evaluating it on every data
   // chunk.
   bool reject_early_connect_data_enabled_ : 1 = false;
+  bool saw_early_connect_data_ : 1 = false;
 };
 
 class ProdFilter : public Filter {

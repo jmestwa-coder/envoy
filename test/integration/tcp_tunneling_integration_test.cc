@@ -497,9 +497,6 @@ TEST_P(ConnectTerminationIntegrationTest, IgnoreH11HostField) {
 }
 
 TEST_P(ConnectTerminationIntegrationTest, EarlyConnectDataRejectedWithOverride) {
-  // TODO(yanavlasov): fix the test
-  GTEST_SKIP() << "Test is too flaky for CI. "
-                  "https://github.com/envoyproxy/envoy/issues/39856#issuecomment-3637976574";
   config_helper_.addConfigModifier(
       [](envoy::extensions::filters::network::http_connection_manager::v3::HttpConnectionManager&
              hcm) {

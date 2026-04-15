@@ -987,10 +987,19 @@ bool Filter::isEarlyConnectData() {
          Http::HeaderUtility::isConnect(*downstream_headers_) && !downstream_response_started_;
 }
 
+void Filter::rejectEarlyConnectData(bool reset_upstreams) {
+  if (reset_upstreams) {
+    resetAll();
+    cleanup();
+  }
+  callbacks_->sendLocalReply(Http::Code::BadRequest, "", nullptr, absl::nullopt,
+                             StreamInfo::ResponseCodeDetails::get().EarlyConnectData);
+}
+
 Http::FilterDataStatus Filter::decodeData(Buffer::Instance& data, bool end_stream) {
   if (data.length() > 0 && isEarlyConnectData()) {
-    callbacks_->sendLocalReply(Http::Code::BadRequest, "", nullptr, absl::nullopt,
-                               StreamInfo::ResponseCodeDetails::get().EarlyConnectData);
+    saw_early_connect_data_ = true;
+    rejectEarlyConnectData(/*reset_upstreams=*/false);
     return Http::FilterDataStatus::StopIterationNoBuffer;
   }
   // upstream_requests_.size() cannot be > 1 because that only happens when a per
@@ -1865,6 +1874,11 @@ void Filter::onUpstreamHeaders(uint64_t response_code, Http::ResponseHeaderMapPt
 
   callbacks_->streamInfo().setResponseCodeDetails(
       StreamInfo::ResponseCodeDetails::get().ViaUpstream);
+
+  if (response_code == enumToInt(Http::Code::OK) && saw_early_connect_data_) {
+    rejectEarlyConnectData(/*reset_upstreams=*/true);
+    return;
+  }
 
   callbacks_->streamInfo().setResponseCode(response_code);
   downstream_response_started_ = true;
