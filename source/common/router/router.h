@@ -636,7 +636,7 @@ private:
   void maybeProcessOrcaLoadReport(const Envoy::Http::HeaderMap& headers_or_trailers,
                                   UpstreamRequest& upstream_request);
   bool isEarlyConnectData();
-  void rejectEarlyConnectData(bool reset_upstreams);
+  void rejectEarlyConnectData();
 
   RetryStatePtr retry_state_;
   const FilterConfigSharedPtr config_;
