@@ -562,8 +562,29 @@ void DnsCacheImpl::finishResolve(const std::string& host,
               dns_ttl.count() * 1000);
   } else {
     if (!config_.disable_dns_refresh_on_failure()) {
-      const uint64_t refresh_interval =
-          primary_host_info->failure_backoff_strategy_->nextBackOffMs();
+      uint64_t refresh_interval = primary_host_info->failure_backoff_strategy_->nextBackOffMs();
+      // Cap the failure backoff so the next eviction check fires within host_ttl
+      // after last use. Without this cap, a long backoff after DNS failure can
+      // delay eviction indefinitely when touch() races with the re-resolve alarm:
+      // if touch() lands just before onReResolveAlarm, now-last_used <= host_ttl
+      // so startResolve runs, and then the backoff pushes the next eviction check
+      // far beyond last_used + host_ttl.
+      const auto now_for_eviction_check =
+          main_thread_dispatcher_.timeSource().monotonicTime().time_since_epoch();
+      const auto elapsed_since_last_use =
+          now_for_eviction_check - primary_host_info->host_info_->lastUsedTime();
+      if (elapsed_since_last_use < host_ttl_) {
+        const uint64_t until_eviction_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(host_ttl_ -
+                                                                   elapsed_since_last_use)
+                .count() +
+            1;
+        refresh_interval = std::min(refresh_interval, until_eviction_ms);
+      } else {
+        // Already past eviction TTL — schedule an immediate check so
+        // onReResolveAlarm can evict the host without further delay.
+        refresh_interval = 1;
+      }
       primary_host_info->refresh_timer_->enableTimer(std::chrono::milliseconds(refresh_interval));
       ENVOY_LOG(debug, "DNS refresh rate reset for host '{}', (failure) refresh rate {} ms", host,
                 refresh_interval);

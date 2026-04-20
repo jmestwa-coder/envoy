@@ -867,6 +867,92 @@ TEST_F(DnsCacheImplTest, ResolveFailureAfterResolveSuccess) {
              1 /* added */, 1 /* removed */, 0 /* num hosts */);
 }
 
+// Regression test for the touch()/alarm race that caused indefinite eviction
+// delays. When touch() lands just before onReResolveAlarm fires, the host is
+// considered active (now - last_used <= host_ttl) and startResolve runs. If DNS
+// then fails, the exponential backoff previously scheduled the next check far
+// beyond last_used + host_ttl, effectively deferring eviction indefinitely.
+// The fix caps the failure-backoff interval at host_ttl - elapsed_since_use + 1ms
+// so the eviction check fires promptly once the host has been idle for host_ttl.
+TEST_F(DnsCacheImplTest, TTLTouchRaceEviction) {
+  *config_.mutable_host_ttl() = Protobuf::util::TimeUtil::SecondsToDuration(1);
+  *config_.mutable_dns_refresh_rate() = Protobuf::util::TimeUtil::SecondsToDuration(2);
+  *config_.mutable_dns_min_refresh_rate() = Protobuf::util::TimeUtil::SecondsToDuration(1);
+  initialize();
+  InSequence s;
+
+  MockLoadDnsCacheEntryCallbacks callbacks;
+  Network::DnsResolver::ResolveCb resolve_cb;
+  Event::MockTimer* resolve_timer = new Event::MockTimer(&context_.server_context_.dispatcher_);
+  Event::MockTimer* timeout_timer = new Event::MockTimer(&context_.server_context_.dispatcher_);
+  EXPECT_CALL(*timeout_timer, enableTimer(std::chrono::milliseconds(5000), nullptr));
+  EXPECT_CALL(*resolver_, resolve("foo.com", _, _))
+      .WillOnce(DoAll(SaveArg<2>(&resolve_cb), Return(&resolver_->active_query_)));
+  auto result = dns_cache_->loadDnsCacheEntry("foo.com", 80, false, callbacks);
+  EXPECT_EQ(DnsCache::LoadDnsCacheEntryStatus::Loading, result.status_);
+
+  // Initial DNS resolution succeeds; timer armed for dns_ttl_ (6000 ms from response).
+  EXPECT_CALL(*timeout_timer, disableTimer());
+  EXPECT_CALL(
+      update_callbacks_,
+      onDnsHostAddOrUpdate("foo.com:80", DnsHostInfoEquals("10.0.0.1:80", "foo.com", false)));
+  EXPECT_CALL(callbacks,
+              onLoadDnsCacheComplete(DnsHostInfoEquals("10.0.0.1:80", "foo.com", false)));
+  EXPECT_CALL(update_callbacks_,
+              onDnsResolutionComplete("foo.com:80",
+                                      DnsHostInfoEquals("10.0.0.1:80", "foo.com", false),
+                                      Network::DnsResolver::ResolutionStatus::Completed));
+  EXPECT_CALL(*resolve_timer, enableTimer(std::chrono::milliseconds(dns_ttl_), _));
+  resolve_cb(Network::DnsResolver::ResolutionStatus::Completed, "",
+             TestUtility::makeDnsResponse({"10.0.0.1"}));
+  checkStats(1 /* attempt */, 1 /* success */, 0 /* failure */, 1 /* address changed */,
+             1 /* added */, 0 /* removed */, 1 /* num hosts */);
+
+  // Simulate the race: touch() fires at T=1900ms, just before the re-resolve
+  // alarm at T=2000ms. After touch() last_used_time = T+1900ms, so when the
+  // alarm fires at T+2000ms now-last_used = 100ms < host_ttl=1000ms, causing
+  // startResolve instead of immediate eviction.
+  simTime().advanceTimeWait(std::chrono::milliseconds(1900));
+  {
+    auto host = dns_cache_->getHost("foo.com:80");
+    ASSERT_TRUE(host.has_value());
+    host.value()->touch(); // last_used_time = T+1900ms
+  }
+  simTime().advanceTimeWait(std::chrono::milliseconds(100)); // now = T+2000ms
+
+  // Alarm fires: now-last_used=100ms < host_ttl=1000ms → startResolve (the race).
+  EXPECT_CALL(*timeout_timer, enableTimer(std::chrono::milliseconds(5000), nullptr));
+  EXPECT_CALL(*resolver_, resolve("foo.com", _, _))
+      .WillOnce(DoAll(SaveArg<2>(&resolve_cb), Return(&resolver_->active_query_)));
+  resolve_timer->invokeCallback();
+  checkStats(2 /* attempt */, 1 /* success */, 0 /* failure */, 1 /* address changed */,
+             1 /* added */, 0 /* removed */, 1 /* num hosts */);
+
+  // DNS fails. Without the fix, backoff=2000ms would schedule the next check at
+  // T+4000ms (elapsed from last touch: 2100ms > host_ttl=1000ms, so eviction
+  // would happen but only after a 2s delay). With longer backoffs the delay
+  // grows unbounded. The fix caps the backoff at host_ttl - elapsed + 1ms =
+  // 1000 - 100 + 1 = 901ms, ensuring eviction fires promptly.
+  const std::chrono::milliseconds expected_capped_backoff(901);
+  EXPECT_CALL(*timeout_timer, disableTimer());
+  EXPECT_CALL(update_callbacks_,
+              onDnsResolutionComplete("foo.com:80",
+                                      DnsHostInfoEquals("10.0.0.1:80", "foo.com", false),
+                                      Network::DnsResolver::ResolutionStatus::Failure));
+  EXPECT_CALL(*resolve_timer, enableTimer(expected_capped_backoff, _));
+  resolve_cb(Network::DnsResolver::ResolutionStatus::Failure, "", TestUtility::makeDnsResponse({}));
+  checkStats(2 /* attempt */, 1 /* success */, 1 /* failure */, 1 /* address changed */,
+             1 /* added */, 0 /* removed */, 1 /* num hosts */);
+
+  // After the capped backoff, now = T+2000+901 = T+2901ms.
+  // now - last_used = 2901 - 1900 = 1001ms > host_ttl=1000ms → evict.
+  simTime().advanceTimeWait(std::chrono::milliseconds(901));
+  EXPECT_CALL(update_callbacks_, onDnsHostRemove("foo.com:80"));
+  resolve_timer->invokeCallback();
+  checkStats(2 /* attempt */, 1 /* success */, 1 /* failure */, 1 /* address changed */,
+             1 /* added */, 1 /* removed */, 0 /* num hosts */);
+}
+
 TEST_F(DnsCacheImplTest, DisableRefreshOnFailureContainsFailedHost) {
   config_.set_disable_dns_refresh_on_failure(true);
 
