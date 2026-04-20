@@ -581,7 +581,7 @@ void DnsCacheImpl::finishResolve(const std::string& host,
             1;
         refresh_interval = std::min(refresh_interval, until_eviction_ms);
       } else {
-        // Already past eviction TTL — schedule an immediate check so
+        // Already past eviction TTL — schedule a near-immediate check (1ms) so
         // onReResolveAlarm can evict the host without further delay.
         refresh_interval = 1;
       }

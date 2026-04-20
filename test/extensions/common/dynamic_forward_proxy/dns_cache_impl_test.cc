@@ -908,8 +908,8 @@ TEST_F(DnsCacheImplTest, TTLTouchRaceEviction) {
   checkStats(1 /* attempt */, 1 /* success */, 0 /* failure */, 1 /* address changed */,
              1 /* added */, 0 /* removed */, 1 /* num hosts */);
 
-  // Simulate the race: touch() fires at T=1900ms, just before the re-resolve
-  // alarm at T=2000ms. After touch() last_used_time = T+1900ms, so when the
+  // Simulate the race: touch() fires at T+1900ms, just before the re-resolve
+  // alarm at T+2000ms. After touch(), last_used_time = T+1900ms, so when the
   // alarm fires at T+2000ms now-last_used = 100ms < host_ttl=1000ms, causing
   // startResolve instead of immediate eviction.
   simTime().advanceTimeWait(std::chrono::milliseconds(1900));
