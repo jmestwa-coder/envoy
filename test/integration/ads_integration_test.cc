@@ -3156,6 +3156,12 @@ TEST_P(AdsIntegrationTest, MultipleVhdsOverAds) {
   // reachable from listener_1.
   sendDiscoveryResponse<envoy::config::route::v3::VirtualHost>(
       Config::TestTypeUrl::get().VirtualHost, {}, {}, {"route_config_0/foo"}, "1");
+  // Wait for the VHDS removal of route_config_0/foo to be applied before asserting 404.
+  // The config_reload counter is incremented in VhdsSubscription::onConfigUpdate after the route
+  // table is updated and before the update is dispatched to worker threads. Without this wait,
+  // the request may be sent before the VHDS removal propagates, causing the router to forward
+  // it to the upstream (which is not read in the 404 path) and return 504 on timeout.
+  test_server_->waitForCounterGe("http.ads_test.rds.vhds.route_config_0.config_reload", 2);
   send_request_and_verify("http1", foo_request_headers, true);
   send_request_and_verify("http1", bar_request_headers);
 
