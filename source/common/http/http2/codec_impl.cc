@@ -1414,6 +1414,10 @@ int ConnectionImpl::onInvalidFrame(int32_t stream_id, int error_code) {
 
   case ERR_HTTP_HEADER:
   case ERR_HTTP_MESSAGING:
+  // nghttp2 1.69.0+ calls on_invalid_frame_recv_callback with ERR_PROTO for DATA frame
+  // content-length mismatches (previously only RST_STREAM was sent without invoking the
+  // callback). Treat this the same as ERR_HTTP_MESSAGING to preserve stream error behavior.
+  case ERR_PROTO:
     stats_.rx_messaging_error_.inc();
     if (stream_error_on_invalid_http_messaging_) {
       // The stream is about to be closed due to an invalid header or messaging. Don't kill the
@@ -1427,7 +1431,6 @@ int ConnectionImpl::onInvalidFrame(int32_t stream_id, int error_code) {
     break;
 
   case ERR_FLOW_CONTROL:
-  case ERR_PROTO:
   case ERR_STREAM_CLOSED:
     // Known error conditions that should trigger connection close.
     break;
