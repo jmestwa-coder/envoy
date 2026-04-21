@@ -48,8 +48,13 @@ test_suite(
     tests = [
         "http2_adapter_event_forwarder_test",
         "http2_adapter_header_validator_test",
-        "http2_adapter_impl_comparison_test",
-        "http2_adapter_nghttp2_adapter_test",
+        # TODO(phlax): Re-enable after quiche is updated for nghttp2 1.69.0 behavioral changes.
+        # nghttp2 1.69.0 changes header/messaging errors from connection errors (GOAWAY) to
+        # stream errors (RST_STREAM) with glitch rate limit, and now calls
+        # on_invalid_frame_recv_callback for data messaging errors where it previously did not.
+        # These quiche adapter tests need to be updated upstream to match.
+        # "http2_adapter_impl_comparison_test",
+        # "http2_adapter_nghttp2_adapter_test",
         "http2_adapter_nghttp2_data_provider_test",
         "http2_adapter_nghttp2_session_test",
         "http2_adapter_oghttp2_adapter_test",
