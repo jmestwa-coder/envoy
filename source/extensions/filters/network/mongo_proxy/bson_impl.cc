@@ -353,7 +353,7 @@ std::string FieldImpl::toString() const {
 
   case Type::ObjectId: {
     return fmt::format("\"{}\"",
-                       Hex::encode(&value_.object_id_value_[0], value_.object_id_value_.size()));
+                       Hex::encode(value_.object_id_value_));
   }
 
   case Type::Boolean: {
