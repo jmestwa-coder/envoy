@@ -200,7 +200,7 @@ std::string JA4Fingerprinter::getJA4CipherHash(const SSL_CLIENT_HELLO* ssl_clien
   std::array<uint8_t, SHA256_DIGEST_LENGTH> hash;
   EVP_Digest(cipher_list.data(), cipher_list.length(), hash.data(), nullptr, EVP_sha256(), nullptr);
 
-  return Envoy::Hex::encode(absl::MakeSpan(hash.data(), JA4_HASH_LENGTH / 2));
+  return Envoy::Hex::encode(absl::Span(hash.data(), JA4_HASH_LENGTH / 2));
 }
 
 std::string JA4Fingerprinter::getJA4ExtensionHash(const SSL_CLIENT_HELLO* ssl_client_hello) {
