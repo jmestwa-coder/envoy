@@ -301,7 +301,7 @@ ReadOrParseState Filter::parseBuffer(Network::ListenerFilterBuffer& buffer) {
     if (proxy_protocol_header_.value().local_command_) {
       ENVOY_LOG(trace, "Parsed proxy protocol header, cmd: LOCAL, length: {}, buffer: {}",
                 proxy_protocol_header_.value().wholeHeaderLength(),
-                Envoy::Hex::encode(absl::MakeSpan(buf, proxy_protocol_header_.value().wholeHeaderLength())));
+                Envoy::Hex::encode(absl::Span(buf, proxy_protocol_header_.value().wholeHeaderLength())));
 
       cb_->filterState().setData(
           Network::ProxyProtocolFilterState::key(),
