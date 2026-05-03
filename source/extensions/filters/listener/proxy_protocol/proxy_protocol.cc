@@ -317,7 +317,7 @@ ReadOrParseState Filter::parseBuffer(Network::ListenerFilterBuffer& buffer) {
           "Parsed proxy protocol header, cmd: PROXY, length: {}, buffer: {}, TLV length: {}, TLV "
           "buffer: {}",
           proxy_protocol_header_.value().wholeHeaderLength(),
-          Envoy::Hex::encode(absl::MakeSpan(buf, proxy_protocol_header_.value().wholeHeaderLength())),
+          Envoy::Hex::encode(absl::Span(buf, proxy_protocol_header_.value().wholeHeaderLength())),
           proxy_protocol_header_.value().extensions_length_,
           Envoy::Hex::encode(absl::MakeSpan(buf + proxy_protocol_header_.value().headerLengthWithoutExtension(),
                              proxy_protocol_header_.value().extensions_length_)));
