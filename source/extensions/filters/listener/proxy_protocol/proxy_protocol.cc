@@ -319,7 +319,7 @@ ReadOrParseState Filter::parseBuffer(Network::ListenerFilterBuffer& buffer) {
           proxy_protocol_header_.value().wholeHeaderLength(),
           Envoy::Hex::encode(absl::Span(buf, proxy_protocol_header_.value().wholeHeaderLength())),
           proxy_protocol_header_.value().extensions_length_,
-          Envoy::Hex::encode(absl::MakeSpan(buf + proxy_protocol_header_.value().headerLengthWithoutExtension(),
+          Envoy::Hex::encode(absl::Span(buf + proxy_protocol_header_.value().headerLengthWithoutExtension(),
                              proxy_protocol_header_.value().extensions_length_)));
       cb_->filterState().setData(
           Network::ProxyProtocolFilterState::key(),
