@@ -19,7 +19,7 @@ public:
    * @return the hex encoded string representing data
    */
   static std::string encode(const std::vector<uint8_t>& data) {
-    return encode(data);
+    return encode(absl::Span<const uint8_t>(data));
   }
 
   static std::string encode(absl::Span<const uint8_t> data);
